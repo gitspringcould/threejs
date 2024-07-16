@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start:su7": "cd apps/su7 && pnpm run dev",
+    "start:start": "cd apps/start && pnpm run dev",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
