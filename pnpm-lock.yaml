@@ -22,7 +22,7 @@ importers:
         specifier: ^0.166.1
         version: 0.166.1
 
-  apps/su7:
+  apps/start:
     dependencies:
       vue:
         specifier: ^3.4.29
