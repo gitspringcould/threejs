@@ -5,8 +5,16 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { GUI } from "three/examples/jsm/libs/lil-gui.module.min.js";
+import {
+  BlendFunction,
+  EffectPass,
+  EffectComposer,
+  SelectiveBloomEffect,
+  RenderPass,
+} from "postprocessing";
 
 import OutLineClip from "./OutLineClip";
+import ReflectFloorMesh from "./ReflectFloor";
 
 import bg from "../textures/t_env_light.hdr";
 
@@ -68,11 +76,54 @@ export default class World {
     this.render();
   }
 
-  initClipPlane() {}
+  initClipPlane() {
+    this.localPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
+    this.localPlane.constant = 13;
+  }
 
-  initReflector() {}
+  initReflector() {
+    let geo = new THREE.PlaneGeometry(64, 64);
+    let floor = new ReflectFloorMesh(geo, {
+      textureWidth: 512,
+      textureHeight: 512,
+    });
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -0.0001;
+    this.scene.add(floor);
+  }
 
-  initComposer() {}
+  initComposer() {
+    const effect = new SelectiveBloomEffect(this.scene, this.camera, {
+      blendFunction: BlendFunction.ADD,
+      mipmapBlur: true,
+      luminanceThreshold: 0,
+      luminanceSmoothing: 0.8,
+      opacity: 0.6,
+      intensity: 3.0,
+    });
+    effect.inverted = true;
+    effect.ignoreBackground = true;
+    effect.selection.set([]);
+    let material = new THREE.MeshBasicMaterial({ color: 0x3fffff });
+    let geometry = new THREE.PlaneGeometry(5, 5, 10, 10);
+    let plane = new THREE.Mesh(geometry, material);
+    let plane2 = new THREE.Mesh(geometry, material);
+    plane2.position.x = 6;
+    plane2.position.y = 6;
+    plane.position.y = 6;
+    plane.scale.set(0.01, 0.01, 0.01);
+    plane2.scale.set(0.01, 0.01, 0.01);
+    // this.scene.add(plane, plane2)
+
+    effect.selection.set([plane]);
+    this.bloomEffect = effect;
+    let composerBloom = new EffectComposer(this.renderer);
+    // 添加renderPass
+    composerBloom.addPass(new RenderPass(this.scene, this.camera));
+    const effectPass = new EffectPass(this.camera, effect);
+    composerBloom.addPass(effectPass);
+    this.composer = composerBloom;
+  }
 
   initGui() {
     this.gui = new GUI({ width: 260 });

@@ -231,7 +231,7 @@ export default class OutLineClip {
     return { colliderBvh, colliderMesh, bvhHelper };
   }
 
-  initGui() {
+  initGui(gui) {
     let params = this.params;
     gui.add(params, "invert");
     gui.add(params, "animate");
@@ -253,5 +253,143 @@ export default class OutLineClip {
     helperFolder.open();
 
     gui.open();
+  }
+
+  renderThing() {
+    if (this.bvhHelper) {
+      this.bvhHelper.visible = this.params.helperDisplay;
+      this.colliderMesh.visible = this.params.wireframeDisplay;
+
+      this.frontSideModel.visible = this.params.displayModel;
+      this.backSideModel.visible = this.params.displayModel;
+    }
+
+    // make the outlines darker if the model is shown
+    this.outlineLines.material.color.set(
+      this.params.displayModel ? 0x3fffff : 0x3fffff
+    );
+    const delta = Math.min(this.clock.getDelta(), 0.03);
+    if (this.params.animate) {
+      this.time += delta;
+
+      if (this.params.animation === "SPIN") {
+        this.planeMesh.rotation.x = 0.25 * this.time;
+        this.planeMesh.rotation.y = 0.25 * this.time;
+        this.planeMesh.rotation.z = 0.25 * this.time;
+        this.planeMesh.position.set(0, 0, 0);
+      } else {
+        // this.planeMesh.position.set(0, 0, 0);
+        this.planeMesh.rotation.set(0, Math.PI / 2, 0);
+      }
+
+      this.planeMesh.updateMatrixWorld();
+    }
+
+    const clippingPlane = this.clippingPlanes[0];
+    clippingPlane.normal.set(0, 0, this.params.invert ? 1 : -1);
+    clippingPlane.constant = 0;
+    clippingPlane.applyMatrix4(this.planeMesh.matrixWorld);
+
+    // Perform the clipping
+    if (this.colliderBvh && (this.params.animate || !this.initialClip)) {
+      this.initialClip = true;
+
+      // get the clipping plane in the local space of the BVH
+      this.inverseMatrix.copy(this.colliderMesh.matrixWorld).invert();
+      this.localPlane.copy(clippingPlane).applyMatrix4(this.inverseMatrix);
+
+      let index = 0;
+      const posAttr = this.outlineLines.geometry.attributes.position;
+      const startTime = window.performance.now();
+      this.colliderBvh.shapecast({
+        intersectsBounds: (box) => {
+          // if we're not using the BVH then skip straight to iterating over all triangles
+          if (!this.params.useBVH) {
+            return CONTAINED;
+          }
+          return this.localPlane.intersectsBox(box);
+        },
+        intersectsTriangle: (tri) => {
+          // check each triangle edge to see if it intersects with the plane. If so then
+          // add it to the list of segments.
+          let count = 0;
+          this.tempLine.start.copy(tri.a);
+          this.tempLine.end.copy(tri.b);
+          if (this.localPlane.intersectLine(this.tempLine, this.tempVector)) {
+            posAttr.setXYZ(
+              index,
+              this.tempVector.x,
+              this.tempVector.y,
+              this.tempVector.z
+            );
+            index++;
+            count++;
+          }
+
+          this.tempLine.start.copy(tri.b);
+          this.tempLine.end.copy(tri.c);
+          if (this.localPlane.intersectLine(this.tempLine, this.tempVector)) {
+            posAttr.setXYZ(
+              index,
+              this.tempVector.x,
+              this.tempVector.y,
+              this.tempVector.z
+            );
+            count++;
+            index++;
+          }
+
+          this.tempLine.start.copy(tri.c);
+          this.tempLine.end.copy(tri.a);
+          if (this.localPlane.intersectLine(this.tempLine, this.tempVector)) {
+            posAttr.setXYZ(
+              index,
+              this.tempVector.x,
+              this.tempVector.y,
+              this.tempVector.z
+            );
+            count++;
+            index++;
+          }
+
+          // When the plane passes through a vertex and one of the edges of the triangle, there will be three intersections, two of which must be repeated
+          if (count === 3) {
+            this.tempVector1.fromBufferAttribute(posAttr, index - 3);
+            this.tempVector2.fromBufferAttribute(posAttr, index - 2);
+            this.tempVector3.fromBufferAttribute(posAttr, index - 1);
+            // If the last point is a duplicate intersection
+            if (
+              this.tempVector3.equals(this.tempVector1) ||
+              this.tempVector3.equals(this.tempVector2)
+            ) {
+              count--;
+              index--;
+            } else if (this.tempVector1.equals(this.tempVector2)) {
+              // If the last point is not a duplicate intersection
+              // Set the penultimate point as a distinct point and delete the last point
+              posAttr.setXYZ(index - 2, this.tempVector3);
+              count--;
+              index--;
+            }
+          }
+
+          // If we only intersected with one or three sides then just remove it. This could be handled
+          // more gracefully.
+          if (count !== 2) {
+            index -= count;
+          }
+        },
+      });
+
+      // set the draw range to only the new segments and offset the lines so they don't intersect with the geometry
+      this.outlineLines.geometry.setDrawRange(0, index);
+      this.outlineLines.position
+        .copy(clippingPlane.normal)
+        .multiplyScalar(-0.00001);
+      posAttr.needsUpdate = true;
+
+      const delta = window.performance.now() - startTime;
+      // outputElement.innerText = `${parseFloat(delta.toFixed(3))}ms`;
+    }
   }
 }
