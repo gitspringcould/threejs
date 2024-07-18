@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted } from "vue";
+import su7Model from "./model/su7blender/scene_editor.glb";
 import su7ModelMerge from "./model/su7blender/merge.gltf";
 import World from "./js/World";
 
@@ -8,6 +9,7 @@ let su7world = {};
 onMounted(() => {
   su7world = new World("su7World", "su7World");
   su7world.initPostGrocess(su7ModelMerge);
+  su7world.addModle(su7Model);
 });
 </script>
 

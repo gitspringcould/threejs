@@ -171,6 +171,45 @@ export default class World {
     });
   }
 
+  addModle(path) {
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath("draco/gltf/");
+
+    const loader = new GLTFLoader();
+    loader.setDRACOLoader(dracoLoader);
+    loader.dracoLoader.dispose();
+    loader.load(path, (gltf) => {
+      gltf.scene.scale.set(2, 2, 2);
+      gltf.scene.position.y = 0.2;
+      gltf.scene.name = "carScene";
+      // remove light
+      gltf.scene.remove(gltf.scene.children[1]);
+      gltf.scene.traverse((item) => {
+        if (item.isMesh) {
+          item.material.clippingPlanes = [this.localPlane];
+          item.stencilRef = 1;
+          item.stencilWrite = true;
+          item.stencilWriteMask = 0xff;
+          item.stencilZPass = THREE.ReplaceStencilOp;
+          item.geometry.computeVertexNormals();
+          if (item.name === "平面") {
+            item.visible = false;
+          }
+          if (item.name === "topLigt") {
+            item.material.clippingPlanes = [];
+            item.position.y = 6;
+            item.scale.set(12, 0.04, 6);
+            // item.visible = false
+            item.material.emissiveIntensity = 0.52;
+            // item.material.emissiveIntensity = 0
+            this.topLight = item;
+          }
+        }
+      });
+      this.scene.add(gltf.scene);
+    });
+  }
+
   render() {
     if (this.paused) {
       return;
