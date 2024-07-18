@@ -180,7 +180,6 @@ export default class World {
     loader.dracoLoader.dispose();
     loader.load(path, (gltf) => {
       gltf.scene.scale.set(2, 2, 2);
-      gltf.scene.position.y = 0.2;
       gltf.scene.name = "carScene";
       // remove light
       gltf.scene.remove(gltf.scene.children[1]);
