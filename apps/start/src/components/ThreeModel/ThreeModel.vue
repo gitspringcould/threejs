@@ -1,8 +1,12 @@
 <script setup>
-import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { onMounted } from "vue";
+import World from "./js/World";
+import Porsche from "./model/porsche/porsche.glb";
+
+onMounted(() => {
+  const threeModel = new World("three-model", "three-model");
+  threeModel.addModel(Porsche);
+});
 </script>
 
 <template>
