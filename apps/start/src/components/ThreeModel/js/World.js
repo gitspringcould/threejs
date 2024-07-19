@@ -13,6 +13,8 @@ export default class World {
     this.scene.add(new THREE.AmbientLight(0xffffff, 10));
     this.scene.add(new THREE.DirectionalLight(0xffffff, 1));
 
+    this.clock = new THREE.Clock();
+
     this.container = document.getElementById(selector);
     this.width = this.container.offsetWidth;
     this.height = this.container.offsetHeight;
@@ -58,6 +60,12 @@ export default class World {
         const model = gltf.scene;
         model.scale.set(10, 10, 10);
         this.scene.add(model);
+
+        const modelAnimationArr = gltf.animations;
+        this.mixer = new THREE.AnimationMixer(model);
+        const clipAction = this.mixer.clipAction(modelAnimationArr[0]);
+        clipAction.setLoop(THREE.LoopOnce)
+        clipAction.play();
       },
       (xhr) => {
         console.log((xhr.loaded / xhr.total) * 100 + "% loaded");
@@ -70,6 +78,12 @@ export default class World {
 
   render() {
     requestAnimationFrame(this.render.bind(this));
+
+    if (this.mixer) {
+      const frameT = this.clock.getDelta();
+      this.mixer.update(frameT);
+    }
+
     this.renderer.render(this.scene, this.camera);
   }
 }
